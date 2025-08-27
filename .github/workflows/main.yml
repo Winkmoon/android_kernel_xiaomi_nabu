@@ -35,8 +35,8 @@ jobs:
     - name: 下载内核源码
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://github.com/Winkmoon/android_kernel_xiaomi_nabu -b lineage-22.1 xinran
-        cd android-kernel
+        git clone --depth=1 https://github.com/Winkmoon/android_kernel_xiaomi_nabu -b lineage-22.1 xinran
+        cd xinran
 
     - name: 集成SukiSU
       run: |
