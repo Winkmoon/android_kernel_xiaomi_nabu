@@ -1,0 +1,119 @@
+name: Build Xiaomi nabu Kernel-SukiSU test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Kernel
+    runs-on: ubuntu-22.04
+    steps:
+
+      - name: Get branch
+        id: branch
+        uses: tj-actions/branch-names@v8
+
+      - name: Set SWAP
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 15
+
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt-get update
+          # Install zip tool to fix package dependency (critical for generating zip files)
+          sudo apt-get install -y \
+            git build-essential make bc python2.7 python3 \
+            libncurses5-dev lib32z1-dev gcc-multilib g++-multilib \
+            flex bison libssl-dev device-tree-compiler zip
+          sudo ln -sf /usr/bin/python2.7 /usr/bin/python2
+          mkdir -p $GITHUB_WORKSPACE/workdir
+          echo "BUILD_TIME=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+
+      - name: Get toolchain
+        run: |
+          git clone https://github.com/kdrag0n/proton-clang.git -b 20210522 --depth 1 $GITHUB_WORKSPACE/workdir/clang
+
+      - name: Get source
+        run: |
+          git clone --recursive https://github.com/Winkmoon/android_kernel_xiaomi_nabu.git \
+          -b lineage-22.1 \
+          --depth 1 $GITHUB_WORKSPACE/workdir/source
+
+      - name: Install SukiSU
+        run: |
+          cd $GITHUB_WORKSPACE/workdir/source
+          sed -i "\$s|echo \"\\\$res\"|echo \"-Xinran_StarBai_nabu\"|" ./scripts/setlocalversion
+          rm -rf KernelSU
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s nongki
+          cd ./KernelSU
+          # Fix expr syntax error: Remove quotes around '+' (expr requires unquoted operator for arithmetic)
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) + 10700)
+          export KSU_VERSION=$KSU_VERSION
+          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=$KSU_VERSION/" kernel/Makefile
+          cd ..
+
+          echo "CONFIG_MODULE_SIG=n" >> ./arch/arm64/configs/vendor/xiaomi/nabu_inflated_defconfig
+          echo "CONFIG_MODULE_SIG_ALL=n" >> ./arch/arm64/configs/vendor/xiaomi/nabu_inflated_defconfig
+          echo "CONFIG_KSU_TRACEPOINT_HOOK=y" >> ./arch/arm64/configs/vendor/xiaomi/nabu_inflated_defconfig
+          echo "CONFIG_KPM=y" >> ./arch/arm64/configs/vendor/xiaomi/nabu_inflated_defconfig
+
+      - name: Build kernel
+        run: |
+          # Remove duplicate KBUILD_BUILD_HOST definition (avoid redundant overwriting)
+          export KBUILD_BUILD_USER=${{ github.actor }}
+          export ARCH=arm64
+          export KBUILD_BUILD_HOST=欣然-白合作定制版
+          export KBUILD_BUILD_USER=kuan-@欣然酱_official
+          export PATH="$GITHUB_WORKSPACE/workdir/clang/bin/:$PATH"
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          cd $GITHUB_WORKSPACE/workdir/source
+          make O=out vendor/xiaomi/nabu_inflated_defconfig CC=clang
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld
+
+      - name: Verify output
+        run: |
+          if [ -f $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image ]; then
+            echo "CHECK_FILE_IS_OK=true" >> $GITHUB_ENV
+          else
+            echo "Error: Kernel Image not generated!"
+            exit 1
+          fi
+
+      - name: Package kernel
+        if: env.CHECK_FILE_IS_OK == 'true'
+        run: |
+          # Delete old ak3 directory to avoid interference from residual files
+          rm -rf $GITHUB_WORKSPACE/workdir/ak3
+          # Clone AnyKernel3 for packaging
+          git clone https://github.com/Winkmoon/AnyKernel3.git $GITHUB_WORKSPACE/workdir/ak3
+          # Verify Kernel Image exists before copying (prevent empty copy)
+          if [ ! -f $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image ]; then
+            echo "Error: Kernel Image missing during packaging!"
+            exit 1
+          fi
+          cp $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image $GITHUB_WORKSPACE/workdir/ak3
+          # Enter ak3 directory, force zip generation in current directory (./ ensures correct path)
+          cd $GITHUB_WORKSPACE/workdir/ak3
+          zip -r9 ./AnyKernel3-${{ env.BUILD_TIME }}.zip ./*
+          # Verify zip package generation; exit with error and list files if missing (for debugging)
+          if [ ! -f ./AnyKernel3-${{ env.BUILD_TIME }}.zip ]; then
+            echo "Error: Zip package not generated!"
+            echo "Current files in ak3 directory:"
+            ls -la
+            exit 1
+          fi
+          # Print zip package info to confirm successful generation
+          echo "Successfully generated zip package:"
+          ls -la ./AnyKernel3-${{ env.BUILD_TIME }}.zip
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-${{ env.BUILD_TIME }}
+          # Use absolute path (extracted from previous logs to ensure consistency with actual path)
+          path: /home/runner/work/android_kernel_xiaomi_nabu/android_kernel_xiaomi_nabu/workdir/ak3/*.zip
+          if-no-files-found: error  # Force error on missing files for faster debugging
