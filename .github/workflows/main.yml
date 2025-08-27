@@ -100,5 +100,4 @@ jobs:
         with:
           name: Kernel-${{ env.BUILD_TIME }}
           path: |
-            $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image
-            $GITHUB_WORKSPACE/workdir/ak3/AnyKernel3-${{ env.BUILD_TIME }}.zip
+            $GITHUB_WORKSPACE/workdir/ak3/*.zip
