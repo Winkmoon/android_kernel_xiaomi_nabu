@@ -15,7 +15,7 @@ jobs:
       - name: Set SWAP
         uses: pierotofy/set-swap-space@master
         with:
-          swap-size-gb: 5
+          swap-size-gb: 15
 
       - name: Setup environment
         run: |
@@ -45,6 +45,7 @@ jobs:
       - name: install SukiSU
         run: |
          cd $GITHUB_WORKSPACE/workdir/source
+         sed -i "\$s|echo \"\\\$res\"|echo \"-Xinran_StarBai_nabu\"|" ./scripts/setlocalversion
          rm -rf KernelSU
          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s nongki
          cd ./KernelSU
