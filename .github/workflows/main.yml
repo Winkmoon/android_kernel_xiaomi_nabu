@@ -76,7 +76,7 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-gnu-
           cd $GITHUB_WORKSPACE/workdir/source
           make O=out vendor/xiaomi/nabu_inflated_defconfig CC=clang
-          make -j$(nproc --all) O=out CC=clang
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld
 
       - name: Verify output
         run: |
