@@ -5,7 +5,7 @@ on:
 jobs:
   build:
     name: Build Kernel
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
 
       - name: Get branch
@@ -44,7 +44,7 @@ jobs:
 
       - name: install SukiSU
         run: |
-         cd $GITHUB_WORKSPACE/kernel_workspace/source
+         cd $GITHUB_WORKSPACE/workdir/source
          rm -rf KernelSU
          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s nongki
          cd ./KernelSU
