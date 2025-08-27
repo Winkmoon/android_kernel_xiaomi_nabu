@@ -81,7 +81,7 @@ jobs:
 
       - name: Verify output
         run: |
-          if [ -f $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image.gz-dtb ]; then
+          if [ -f $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image ]; then
             echo "CHECK_FILE_IS_OK=true" >> $GITHUB_ENV
           else
             exit 1
@@ -91,7 +91,7 @@ jobs:
         if: env.CHECK_FILE_IS_OK == 'true'
         run: |
           git clone https://github.com/Winkmoon/AnyKernel3.git $GITHUB_WORKSPACE/workdir/ak3
-          cp $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image.gz-dtb $GITHUB_WORKSPACE/workdir/ak3
+          cp $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image $GITHUB_WORKSPACE/workdir/ak3
           cd $GITHUB_WORKSPACE/workdir/ak3
           zip -r9 AnyKernel3-${{ env.BUILD_TIME }}.zip *
 
@@ -100,5 +100,5 @@ jobs:
         with:
           name: Kernel-${{ env.BUILD_TIME }}
           path: |
-            $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image.gz-dtb
+            $GITHUB_WORKSPACE/workdir/source/out/arch/arm64/boot/Image
             $GITHUB_WORKSPACE/workdir/ak3/AnyKernel3-${{ env.BUILD_TIME }}.zip
